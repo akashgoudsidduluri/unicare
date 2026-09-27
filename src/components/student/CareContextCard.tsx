@@ -3,6 +3,7 @@ import { TriageResult } from '../../types/triage';
 import { Student } from '../../types/student';
 import { StudentAvatar } from '../common/StudentAvatar';
 import { PriorityBadge } from '../common/PriorityBadge';
+import { CareCase } from '../../types/case';
 import {
   FileText,
   Shield,
@@ -13,6 +14,7 @@ import {
   Building2,
   ListChecks,
   UserCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { SUPPORT_DOMAINS } from '../../data/supportCatalog';
 
@@ -25,6 +27,8 @@ interface CareContextCardProps {
   onEdit: () => void;
   onConfirm: () => void;
   isSubmitting?: boolean;
+  duplicateActiveCase?: CareCase | null;
+  onViewExisting?: (caseId: string) => void;
 }
 
 export const CareContextCard: React.FC<CareContextCardProps> = ({
@@ -36,6 +40,8 @@ export const CareContextCard: React.FC<CareContextCardProps> = ({
   onEdit,
   onConfirm,
   isSubmitting = false,
+  duplicateActiveCase,
+  onViewExisting,
 }) => {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-fadeIn">
@@ -269,6 +275,34 @@ export const CareContextCard: React.FC<CareContextCardProps> = ({
           </div>
         </div>
 
+        {/* Duplicate Active Notice if already open */}
+        {duplicateActiveCase && (
+          <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-900">
+                  You already have an active support request covering this issue
+                </p>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  Case <span className="font-mono font-medium">{duplicateActiveCase.id}</span> is currently{' '}
+                  <span className="font-semibold capitalize">{duplicateActiveCase.status.replace('_', ' ')}</span>. To prevent redundant queues, UniCare does not create multiple active cases for the same concern.
+                </p>
+              </div>
+            </div>
+            {onViewExisting && (
+              <button
+                type="button"
+                onClick={() => onViewExisting(duplicateActiveCase.id)}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-900 bg-amber-200/80 hover:bg-amber-300 rounded-md transition-colors cursor-pointer shrink-0"
+              >
+                <span>View My Request</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Submission Controls */}
         <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
           <button
@@ -281,21 +315,32 @@ export const CareContextCard: React.FC<CareContextCardProps> = ({
             <span>Edit My Input</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 active:bg-navy-950 rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <span>Submitting Case...</span>
-            ) : (
-              <>
-                <CheckCircle size={16} />
-                <span>Confirm & Submit Request</span>
-              </>
-            )}
-          </button>
+          {duplicateActiveCase ? (
+            <button
+              type="button"
+              onClick={() => onViewExisting && onViewExisting(duplicateActiveCase.id)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-amber-700 hover:bg-amber-800 rounded-lg shadow-xs transition-colors cursor-pointer"
+            >
+              <ArrowRight size={16} />
+              <span>View Existing Active Request</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-navy-900 hover:bg-navy-800 active:bg-navy-950 rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <span>Creating Request...</span>
+              ) : (
+                <>
+                  <CheckCircle size={16} />
+                  <span>Create Support Request</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

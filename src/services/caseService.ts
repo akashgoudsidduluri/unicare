@@ -2,20 +2,70 @@ import { CareCase, CaseNote, CaseStatus, TimelineEvent } from '../types/case';
 import { PriorityLevel } from '../types/triage';
 import { runTriage, TriageInput } from './triage';
 
+import { TriageResult } from '../types/triage';
+
 export interface CreateCaseParams {
   studentId: string;
   studentName: string;
   selectedConcerns: string[];
   clarifications: Record<string, string[]>;
   freeText?: string;
+  triageResult?: TriageResult;
+}
+
+/**
+ * Checks if a student already has an active (open / under_review) case covering essentially the same issue.
+ * Allows new cases when previous cases are resolved/closed, or when the new issue is genuinely distinct.
+ */
+export function findDuplicateActiveCase(
+  studentId: string,
+  newTriageResult: TriageResult,
+  existingCases: CareCase[]
+): CareCase | null {
+  const activeCases = existingCases.filter(
+    (c) => c.studentId === studentId && (c.status === 'open' || c.status === 'under_review')
+  );
+
+  const newDomains = new Set(newTriageResult.needs.map((n) => n.domain));
+
+  for (const existing of activeCases) {
+    // 1. Same urgent safeguarding crisis
+    if (newTriageResult.isEmergency && existing.triageResult.isEmergency) {
+      return existing;
+    }
+
+    const existingDomains = new Set(existing.triageResult.needs.map((n) => n.domain));
+    const sharedDomains = Array.from(newDomains).filter((d) => existingDomains.has(d));
+
+    // 2. Both are multi-need cases sharing 2+ domains or same primary coordination hub
+    if (newTriageResult.isMultiNeed && existing.triageResult.isMultiNeed) {
+      if (
+        sharedDomains.length >= 2 ||
+        existing.routing.primaryRoute === newTriageResult.recommendedPrimaryRoute
+      ) {
+        return existing;
+      }
+    }
+
+    // 3. Same primary support domain
+    const primaryNew = newTriageResult.needs[0]?.domain;
+    const primaryExisting = existing.triageResult.needs[0]?.domain;
+    if (primaryNew && primaryExisting && primaryNew === primaryExisting) {
+      return existing;
+    }
+  }
+
+  return null;
 }
 
 export function createNewCase(params: CreateCaseParams, existingCases: CareCase[]): CareCase {
-  const triageResult = runTriage({
-    selectedConcerns: params.selectedConcerns,
-    clarifications: params.clarifications,
-    freeText: params.freeText,
-  });
+  const triageResult =
+    params.triageResult ||
+    runTriage({
+      selectedConcerns: params.selectedConcerns,
+      clarifications: params.clarifications,
+      freeText: params.freeText,
+    });
 
   // Generate unique dynamic ID e.g. UC-2026-1042 or random 4-digit if exists
   const studentNum = params.studentId.replace(/\D/g, '');

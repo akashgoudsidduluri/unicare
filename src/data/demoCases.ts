@@ -242,7 +242,7 @@ export const INITIAL_DEMO_CASES: CareCase[] = [
     studentId: 'STU-1238', // Alex Rivera
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 32).toISOString(),
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-    status: 'under_review',
+    status: 'open',
     priority: 'priority',
     selectedConcerns: ["I'm struggling with my studies", "I'm feeling overwhelmed"],
     clarifications: {
@@ -282,14 +282,12 @@ export const INITIAL_DEMO_CASES: CareCase[] = [
       primaryRoute: 'Student Support Coordination',
       additionalRoutes: ['Student Wellbeing Services', 'Academic Advisory & Learning Hub'],
       whyThisPlan: 'Cross-functional need: Alex needs immediate stress relief coping strategies plus academic liaison for design project milestones.',
-      planAccepted: true,
-      planAcceptedAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-      planAcceptedBy: 'Sarah Jenkins (Triage Lead)',
+      planAccepted: false,
     },
     nextBestAction: {
       id: 'nba-1238',
       action: 'Staff review care context and coordinate next steps with design faculty liaison',
-      status: 'in_progress',
+      status: 'pending',
       suggestedRole: 'Lead Triage Officer',
       updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
     },
@@ -310,25 +308,8 @@ export const INITIAL_DEMO_CASES: CareCase[] = [
         description: 'Identified: Wellbeing & Health + Academic Support. Priority elevated to Priority.',
         author: "UniCare's triage engine",
       },
-      {
-        id: 'tl-1238-3',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-        type: 'plan_accepted',
-        title: 'Coordination plan accepted',
-        description: 'Assigned to Student Support central care team.',
-        author: 'Sarah Jenkins',
-      },
     ],
-    notes: [
-      {
-        id: 'note-1238-1',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-        author: 'Sarah Jenkins',
-        role: 'Triage Lead',
-        content: 'Coordinated with Art & Architecture student experience officer. Student offered 5 days buffer on mid-semester review.',
-        isInternalOnly: true,
-      },
-    ],
+    notes: [],
   },
 
   // 5. Urgent Emergency Escalation - Open Urgent (Sarah Chen)
@@ -349,10 +330,10 @@ export const INITIAL_DEMO_CASES: CareCase[] = [
       needs: [
         {
           domain: 'wellbeing',
-          label: 'Wellbeing & Health',
+          label: 'Urgent Safeguarding',
           confidence: 0.98,
           signals: ["Don't feel safe", 'Immediate help requested', 'Safeguarding Protocol'],
-          rationale: 'Student explicitly indicated an immediate safety concern requiring human review.',
+          rationale: 'Student explicitly indicated an immediate safety concern requiring human safeguarding review.',
         },
       ],
       signals: ["Don't feel safe", 'Immediate help', 'Safeguarding Protocol (Demo)'],

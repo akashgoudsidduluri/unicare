@@ -3,6 +3,7 @@ import { useApp } from '../../app/AppContext';
 import { INITIAL_INTENT_OPTIONS, CONTEXT_FOLLOW_UPS } from '../../data/intentConfig';
 import { SupportDomain } from '../../types/support';
 import { runTriage } from '../../services/triage';
+import { findDuplicateActiveCase } from '../../services/caseService';
 import { DotsConnectedCard } from '../../components/student/DotsConnectedCard';
 import { CareContextCard } from '../../components/student/CareContextCard';
 import { VoiceIntakeModal } from '../../components/student/VoiceIntakeModal';
@@ -76,6 +77,9 @@ export const Intake: React.FC = () => {
     freeText,
   });
 
+  // Check if an active case already covers essentially the same issue
+  const duplicateActiveCase = findDuplicateActiveCase(activeStudent.id, triagePreview, state.cases);
+
   // Handle Voice Apply
   const handleApplyVoice = (transcriptText: string, identifiedDomainIds: string[]) => {
     setFreeText(transcriptText);
@@ -124,6 +128,7 @@ export const Intake: React.FC = () => {
           selectedConcerns: selectedConcernLabels,
           clarifications,
           freeText: freeText.trim() ? freeText : undefined,
+          triageResult: triagePreview,
         },
       });
       setIsSubmitting(false);
@@ -358,6 +363,10 @@ export const Intake: React.FC = () => {
           freeText={freeText}
           triageResult={triagePreview}
           isSubmitting={isSubmitting}
+          duplicateActiveCase={duplicateActiveCase}
+          onViewExisting={(caseId) => {
+            dispatch({ type: 'NAVIGATE', payload: { view: 'student-detail', caseId } });
+          }}
           onEdit={() => setCurrentStep('canvas')}
           onConfirm={handleConfirmSubmission}
         />

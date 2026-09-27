@@ -16,7 +16,21 @@ export function loadStoredCases(): CareCase[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      // Clean obvious duplicate active test cases for Maya that pollute the demo state
+      const cleaned: CareCase[] = [];
+      const seenActiveMayaRoutes = new Set<string>();
+
+      for (const c of parsed) {
+        if ((c.status === 'open' || c.status === 'under_review') && c.studentId === 'STU-1042') {
+          const routeKey = c.routing?.primaryRoute || c.triageResult?.recommendedPrimaryRoute || 'default';
+          if (seenActiveMayaRoutes.has(routeKey)) {
+            continue; // Skip polluting duplicate Maya test case
+          }
+          seenActiveMayaRoutes.add(routeKey);
+        }
+        cleaned.push(c);
+      }
+      return cleaned;
     }
     return INITIAL_DEMO_CASES;
   } catch (err) {

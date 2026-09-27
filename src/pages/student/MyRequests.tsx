@@ -8,6 +8,7 @@ export const MyRequests: React.FC = () => {
   const { state, dispatch, activeStudent } = useApp();
 
   const studentCases = state.cases.filter((c) => c.studentId === state.currentStudentId);
+  const activeCase = studentCases.find((c) => c.status === 'open' || c.status === 'under_review');
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10 space-y-6">
@@ -20,14 +21,50 @@ export const MyRequests: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => dispatch({ type: 'NAVIGATE', payload: { view: 'student-intake' } })}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 transition-colors shadow-xs"
-        >
-          <PlusCircle size={15} />
-          <span>New Support Request</span>
-        </button>
+        {activeCase ? (
+          <button
+            onClick={() => dispatch({ type: 'NAVIGATE', payload: { view: 'student-intake' } })}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-lg text-xs font-medium transition-colors cursor-pointer self-start sm:self-center"
+          >
+            <PlusCircle size={14} />
+            <span>Submit Different Concern</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => dispatch({ type: 'NAVIGATE', payload: { view: 'student-intake' } })}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-navy-900 text-white rounded-lg text-xs font-semibold hover:bg-navy-800 transition-colors shadow-xs cursor-pointer"
+          >
+            <PlusCircle size={15} />
+            <span>New Support Request</span>
+          </button>
+        )}
       </div>
+
+      {/* Active Case Banner */}
+      {activeCase && (
+        <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs animate-fadeIn">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900">Active Request In Progress</span>
+            </div>
+            <h3 className="text-sm font-semibold text-amber-950">
+              You already have an active support request
+            </h3>
+            <p className="text-xs text-amber-800">
+              Case <span className="font-mono font-medium">{activeCase.id}</span> is currently{' '}
+              <span className="font-semibold capitalize">{activeCase.status.replace('_', ' ')}</span> ({activeCase.routing.primaryRoute}).
+            </p>
+          </div>
+          <button
+            onClick={() => dispatch({ type: 'NAVIGATE', payload: { view: 'student-detail', caseId: activeCase.id } })}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer shrink-0"
+          >
+            <span>View My Request</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
 
       {studentCases.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">

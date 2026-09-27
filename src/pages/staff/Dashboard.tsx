@@ -25,14 +25,36 @@ export const Dashboard: React.FC = () => {
   const underReviewCount = cases.filter((c) => c.status === 'under_review').length;
   const resolvedCount = cases.filter((c) => c.status === 'resolved').length;
   const priorityCount = cases.filter((c) => c.priority === 'priority').length;
-  const urgentCount = cases.filter((c) => c.priority === 'urgent' && c.status !== 'resolved' && c.status !== 'closed').length;
+
+  // Actionable cases (status === 'open') sorted newest first
+  const actionableUrgentCases = cases
+    .filter((c) => c.priority === 'urgent' && c.status === 'open')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const actionablePriorityCases = cases
+    .filter((c) => c.priority === 'priority' && c.status === 'open')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const actionableNormalCases = cases
+    .filter((c) => c.priority === 'normal' && c.status === 'open')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Highest-priority actionable case for headline alert
+  const headlineCase =
+    actionableUrgentCases[0] ||
+    actionablePriorityCases[0] ||
+    actionableNormalCases[0] ||
+    null;
+
+  const headlineStudent = headlineCase
+    ? students.find((s) => s.id === headlineCase.studentId)
+    : null;
+
+  const actionableUrgentCount = actionableUrgentCases.length;
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const casesTodayCount = cases.filter((c) => new Date(c.createdAt).getTime() >= startOfToday).length;
-
-  // Urgent attention cases
-  const urgentCases = cases.filter((c) => c.priority === 'urgent' && c.status !== 'resolved' && c.status !== 'closed');
 
   // Multi-need cases
   const multiNeedCount = cases.filter((c) => c.triageResult.isMultiNeed).length;
@@ -66,27 +88,112 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Urgent Alert Banner (if urgent unhandled cases exist) */}
-      {urgentCases.length > 0 && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-4 animate-fadeIn">
+      {/* Actionable Priority Headline Alert Banner */}
+      {headlineCase && (
+        <div
+          className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn ${
+            headlineCase.priority === 'urgent'
+              ? 'bg-rose-50 border-rose-200'
+              : headlineCase.priority === 'priority'
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-blue-50/70 border-blue-200'
+          }`}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-rose-600 text-white flex items-center justify-center shrink-0">
-              <AlertCircle size={20} />
+            <div
+              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white ${
+                headlineCase.priority === 'urgent'
+                  ? 'bg-rose-600'
+                  : headlineCase.priority === 'priority'
+                  ? 'bg-amber-600'
+                  : 'bg-navy-900'
+              }`}
+            >
+              {headlineCase.priority === 'urgent' ? (
+                <AlertCircle size={20} />
+              ) : headlineCase.priority === 'priority' ? (
+                <AlertTriangle size={20} />
+              ) : (
+                <Inbox size={20} />
+              )}
             </div>
             <div>
-              <p className="text-xs font-bold text-rose-900 uppercase tracking-wide">
-                Immediate Action Required ({urgentCases.length} Urgent Case{urgentCases.length > 1 ? 's' : ''})
+              <p
+                className={`text-xs font-bold uppercase tracking-wide ${
+                  headlineCase.priority === 'urgent'
+                    ? 'text-rose-900'
+                    : headlineCase.priority === 'priority'
+                    ? 'text-amber-950'
+                    : 'text-navy-950'
+                }`}
+              >
+                {headlineCase.priority === 'urgent' &&
+                  `IMMEDIATE ACTION REQUIRED (${actionableUrgentCases.length} Urgent Case${
+                    actionableUrgentCases.length > 1 ? 's' : ''
+                  })`}
+                {headlineCase.priority === 'priority' &&
+                  `PRIORITY CASE REQUIRES REVIEW (${actionablePriorityCases.length} Priority Case${
+                    actionablePriorityCases.length > 1 ? 's' : ''
+                  })`}
+                {headlineCase.priority === 'normal' &&
+                  `CASES AWAITING INITIAL REVIEW (${actionableNormalCases.length} Open Case${
+                    actionableNormalCases.length > 1 ? 's' : ''
+                  })`}
               </p>
-              <p className="text-xs text-rose-700 mt-0.5">
-                Immediate safeguarding / crisis indicators detected. Cases require immediate human review.
+              <p
+                className={`text-xs mt-0.5 ${
+                  headlineCase.priority === 'urgent'
+                    ? 'text-rose-700'
+                    : headlineCase.priority === 'priority'
+                    ? 'text-amber-800'
+                    : 'text-slate-600'
+                }`}
+              >
+                {headlineCase.priority === 'urgent' && (
+                  <>
+                    <span className="font-semibold text-rose-900">
+                      {headlineStudent?.name || headlineCase.studentId} —{' '}
+                      {headlineCase.triageResult.needs[0]?.label || 'Urgent Safeguarding'}
+                    </span>
+                    : Immediate human safeguarding review required.
+                  </>
+                )}
+                {headlineCase.priority === 'priority' && (
+                  <>
+                    <span className="font-semibold text-amber-950">
+                      {headlineStudent?.name || headlineCase.studentId} —{' '}
+                      {headlineCase.triageResult.needs.map((n) => n.label.split(' ')[0]).join(' + ')}
+                    </span>
+                    : Elevated support needs require staff review and care plan coordination.
+                  </>
+                )}
+                {headlineCase.priority === 'normal' && (
+                  <>
+                    <span className="font-semibold text-navy-900">
+                      {headlineStudent?.name || headlineCase.studentId} —{' '}
+                      {headlineCase.triageResult.summary}
+                    </span>
+                    : New student support request awaiting initial review.
+                  </>
+                )}
               </p>
             </div>
           </div>
           <button
-            onClick={() => dispatch({ type: 'NAVIGATE', payload: { view: 'staff-detail', caseId: urgentCases[0].id } })}
-            className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors shrink-0"
+            onClick={() =>
+              dispatch({ type: 'NAVIGATE', payload: { view: 'staff-detail', caseId: headlineCase.id } })
+            }
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 cursor-pointer text-white ${
+              headlineCase.priority === 'urgent'
+                ? 'bg-rose-600 hover:bg-rose-700'
+                : headlineCase.priority === 'priority'
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : 'bg-navy-900 hover:bg-navy-800'
+            }`}
           >
-            Review Urgent Case
+            {headlineCase.priority === 'urgent' && 'Review Urgent Case'}
+            {headlineCase.priority === 'priority' && 'Review Priority Case'}
+            {headlineCase.priority === 'normal' && 'Review Open Case'}
           </button>
         </div>
       )}
@@ -130,15 +237,19 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Metric 4: Urgent */}
-        <div className={`p-4 rounded-xl border shadow-xs ${urgentCount > 0 ? 'bg-rose-50/50 border-rose-200' : 'bg-white border-slate-200'}`}>
+        <div className={`p-4 rounded-xl border shadow-xs ${actionableUrgentCount > 0 ? 'bg-rose-50/50 border-rose-200' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-rose-800 uppercase tracking-wider">
+            <span className={`text-[11px] font-semibold uppercase tracking-wider ${actionableUrgentCount > 0 ? 'text-rose-800' : 'text-slate-500'}`}>
               Urgent
             </span>
-            <AlertCircle size={16} className="text-rose-600" />
+            <AlertCircle size={16} className={actionableUrgentCount > 0 ? 'text-rose-600' : 'text-slate-400'} />
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-rose-700 mt-2">{urgentCount}</div>
-          <p className="text-[10px] text-slate-500 mt-1">Requires immediate contact</p>
+          <div className={`text-2xl sm:text-3xl font-bold mt-2 ${actionableUrgentCount > 0 ? 'text-rose-700' : 'text-slate-700'}`}>
+            {actionableUrgentCount}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1">
+            {actionableUrgentCount > 0 ? 'Requires immediate contact' : 'All urgent reviewed'}
+          </p>
         </div>
 
         {/* Metric 5: Cases Today */}

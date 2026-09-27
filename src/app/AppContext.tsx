@@ -13,6 +13,7 @@ import {
 } from '../services/storage';
 import {
   createNewCase,
+  findDuplicateActiveCase,
   CreateCaseParams,
   updateCaseStatus as updateCaseStatusService,
   updateCaseRouting as updateCaseRoutingService,
@@ -87,6 +88,33 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case 'CREATE_CASE': {
+      // Evaluate triage to check for duplicate active cases
+      const triageResult =
+        action.payload.triageResult ||
+        createNewCase(action.payload, state.cases).triageResult;
+
+      const existingDuplicate = findDuplicateActiveCase(
+        action.payload.studentId,
+        triageResult,
+        state.cases
+      );
+
+      if (existingDuplicate) {
+        const toast: ToastMessage = {
+          id: `toast-${Date.now()}`,
+          type: 'info',
+          title: 'Active Request Already Exists',
+          message: `Case ${existingDuplicate.id} is already active for this issue. Opening your existing request.`,
+        };
+
+        return {
+          ...state,
+          selectedCaseId: existingDuplicate.id,
+          activeView: 'student-detail',
+          toasts: [...state.toasts, toast],
+        };
+      }
+
       const newCase = createNewCase(action.payload, state.cases);
       const updatedCases = [newCase, ...state.cases];
       saveStoredCases(updatedCases);

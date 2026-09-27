@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../app/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { PriorityBadge } from '../../components/common/PriorityBadge';
@@ -11,11 +11,13 @@ import {
   AlertCircle,
   HelpCircle,
   Calendar,
+  MessageSquare,
 } from 'lucide-react';
 import { SUPPORT_DOMAINS } from '../../data/supportCatalog';
 
 export const RequestDetail: React.FC = () => {
   const { state, dispatch, activeCase } = useApp();
+  const [feedbackGiven, setFeedbackGiven] = useState<'yes' | 'partially' | 'no' | null>(null);
 
   if (!activeCase) {
     return (
@@ -32,6 +34,7 @@ export const RequestDetail: React.FC = () => {
   }
 
   const { triageResult, routing, timeline } = activeCase;
+  const studentVisibleNotes = activeCase.notes?.filter((n) => !n.isInternalOnly) || [];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10 space-y-6 animate-fadeIn">
@@ -55,10 +58,26 @@ export const RequestDetail: React.FC = () => {
               <StatusBadge status={activeCase.status} />
               <PriorityBadge priority={activeCase.priority} />
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Submitted on {new Date(activeCase.createdAt).toLocaleDateString()} at{' '}
-              {new Date(activeCase.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-slate-500">
+              <p>
+                Submitted on {new Date(activeCase.createdAt).toLocaleDateString()} at{' '}
+                {new Date(activeCase.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+              <span>•</span>
+              <p className="flex items-center gap-1 text-slate-700 font-medium">
+                <Clock size={12} className="text-brand-600" />
+                <span>
+                  Review target:{' '}
+                  <strong>
+                    {activeCase.priority === 'urgent'
+                      ? 'immediate response (within 2 hours)'
+                      : activeCase.priority === 'priority'
+                      ? 'within 1 business day'
+                      : 'within 1–2 business days'}
+                  </strong>
+                </span>
+              </p>
+            </div>
           </div>
 
           {/* Quick status message box */}
@@ -167,6 +186,76 @@ export const RequestDetail: React.FC = () => {
               {routing.whyThisPlan}
             </div>
           </div>
+
+          {/* Staff Updates visible to student */}
+          {studentVisibleNotes.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-3">
+              <h3 className="font-bold text-sm text-navy-950 pb-2 border-b border-slate-100 flex items-center gap-2">
+                <MessageSquare size={16} className="text-brand-600" />
+                <span>Updates from Support Staff</span>
+              </h3>
+              <div className="space-y-2.5">
+                {studentVisibleNotes.map((note) => (
+                  <div key={note.id} className="p-3 bg-brand-50/40 border border-brand-100 rounded-lg text-xs space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span className="font-semibold text-brand-900">{note.author}</span>
+                      <span>
+                        {new Date(note.timestamp).toLocaleDateString()} at{' '}
+                        {new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-slate-800 font-medium">{note.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Post-Resolution Feedback */}
+          {(activeCase.status === 'resolved' || activeCase.status === 'closed') && (
+            <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-5 shadow-2xs space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-700" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                  Case Resolution Feedback
+                </h4>
+              </div>
+              {feedbackGiven ? (
+                <p className="text-xs text-emerald-900 font-medium">
+                  ✓ Thank you for letting us know! Your feedback helps our university care team improve student support coordination.
+                </p>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                  <p className="text-xs text-emerald-900 font-medium">
+                    Was this coordinated support helpful for your situation?
+                  </p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackGiven('yes')}
+                      className="px-3 py-1 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-md text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackGiven('partially')}
+                      className="px-3 py-1 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-md text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                    >
+                      Partially
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFeedbackGiven('no')}
+                      className="px-3 py-1 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-md text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Case Timeline */}

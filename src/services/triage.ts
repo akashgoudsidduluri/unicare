@@ -140,7 +140,10 @@ const DOMAIN_KEYWORDS: KeywordRule[] = [
     keywords: [
       'accessibility',
       'disability',
-      'accommodation',
+      'academic accommodation',
+      'exam accommodation',
+      'learning accommodation',
+      'reasonable adjustment',
       'extra time',
       'wheelchair',
       'mobility',
@@ -293,9 +296,14 @@ export function runTriage(input: TriageInput): TriageResult {
   const needs: SupportNeed[] = [];
   const allSignals: string[] = [];
 
-  (Object.keys(domainScoreMap) as SupportDomain[]).forEach((domain) => {
+  // Build identified needs sorted by score descending
+  const sortedDomains = (Object.keys(domainScoreMap) as SupportDomain[]).sort(
+    (a, b) => domainScoreMap[b].score - domainScoreMap[a].score
+  );
+
+  sortedDomains.forEach((domain) => {
     const data = domainScoreMap[domain];
-    if (data.score >= 1.5) {
+    if (data.score >= 1.0) {
       const confidence = Math.min(0.98, 0.65 + data.score * 0.08);
       needs.push({
         domain,
@@ -304,14 +312,27 @@ export function runTriage(input: TriageInput): TriageResult {
         signals: data.signals.slice(0, 4),
         rationale: data.rationales.length > 0
           ? data.rationales[0]
-          : `Detected relevant terms and indications related to ${domain}.`,
+          : `Detected relevant terms and indications related to ${getDomainTitle(domain)}.`,
       });
       allSignals.push(...data.signals);
     }
   });
 
-  // Fallback: If nothing was detected (e.g. vague input), assign general support
-  if (needs.length === 0) {
+  // If emergency/safeguarding triggers detected, inject 'Urgent Safeguarding' as primary need
+  if (isEmergency) {
+    const safetySignals = detectedEmergencyKeywords.map((kw) => `Safety signal: "${kw}"`);
+    const safetyNeed: SupportNeed = {
+      domain: 'wellbeing',
+      label: 'Urgent Safeguarding',
+      confidence: 0.98,
+      signals: safetySignals.length > 0 ? safetySignals : ['Immediate human safeguarding signal detected'],
+      rationale: 'Immediate safety indicators detected requiring human safeguarding review.',
+    };
+    // Ensure Urgent Safeguarding is the primary need at index 0
+    needs.unshift(safetyNeed);
+    allSignals.unshift(...safetyNeed.signals);
+  } else if (needs.length === 0) {
+    // Fallback: If nothing was detected (e.g. vague input), assign general support
     needs.push({
       domain: 'wellbeing',
       label: 'Student General Support',
@@ -321,26 +342,70 @@ export function runTriage(input: TriageInput): TriageResult {
     });
   }
 
+// Operational urgency indicators (elevated priority, non-crisis)
+const ELEVATED_PRIORITY_KEYWORDS = [
+  'urgent',
+  'urgently',
+  'deadline',
+  'due tomorrow',
+  'census deadline',
+  'payment deadline',
+  'fee deadline',
+  'eviction',
+  'evicted',
+  'notice to vacate',
+  'nowhere to sleep',
+  'nowhere to stay',
+  'homeless',
+  'homelessness',
+  'couch surfing',
+  'locked out',
+  'cannot afford food',
+  'no food',
+  'unable to buy food',
+  'unable to buy groceries',
+  'starving',
+  'emergency grant',
+  'hardship grant',
+  'emergency hardship',
+  'visa expiring',
+  'visa cancellation',
+  'visa compliance',
+  'deportation',
+  'academic dismissal',
+  'expulsion',
+];
+
+const ELEVATED_CLARIFICATION_IDS = [
+  'house-emergency', // At risk of having nowhere to sleep
+  'fin-unexpected',   // Unexpected emergency financial hardship
+  'fin-food',         // Food / essentials insecurity
+  'admin-visa',       // Visa compliance risk
+];
+
   // Determine priority
   let priority: PriorityLevel = 'normal';
+
+  const selectedClarificationIds = Object.values(input.clarifications || {}).flat();
+  const hasElevatedClarification = selectedClarificationIds.some((id) =>
+    ELEVATED_CLARIFICATION_IDS.includes(id)
+  );
+
   const hasUrgentIndicators =
-    matchWordBoundary(textCorpus, 'urgent') ||
-    matchWordBoundary(textCorpus, 'eviction') ||
-    matchWordBoundary(textCorpus, 'evicted') ||
-    matchWordBoundary(textCorpus, 'nowhere to stay') ||
-    matchWordBoundary(textCorpus, 'emergency') ||
-    matchWordBoundary(textCorpus, 'cannot afford food');
+    hasElevatedClarification ||
+    ELEVATED_PRIORITY_KEYWORDS.some((kw) => matchWordBoundary(textCorpus, kw));
 
   if (isEmergency) {
     priority = 'urgent';
   } else if (hasUrgentIndicators) {
     priority = 'priority';
+    allSignals.push('Elevated operational urgency / deadline detected');
   } else {
     // Normal priority for standard multi-need cases (like Maya Lin's demo case)
     priority = 'normal';
   }
 
-  const isMultiNeed = needs.length > 1;
+  const isMultiNeed = !isEmergency && needs.length > 1;
 
   // Determine Recommended Primary Route & Additional Routes
   let recommendedPrimaryRoute = '';
